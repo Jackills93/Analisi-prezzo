@@ -1,1 +1,17 @@
-{}
+{
+  "offers": {
+    "Unieuro": {
+      "deal": false,
+      "last_in_stock": false,
+      "last_price": 549.9,
+      "source": "Unieuro"
+    }
+  },
+  "sources": {
+    "Amazon.it": {
+      "fail_alerted": false,
+      "fail_since": "2026-11-12T23:00:23Z"
+    },
+    "Unieuro": {}
+  }
+}
