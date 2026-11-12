@@ -732,7 +732,14 @@ def telegram_send(text: str) -> None:
         with urllib.request.urlopen(req, timeout=20) as resp:
             body = json.loads(resp.read().decode("utf-8", "replace"))
     except urllib.error.HTTPError as e:
-        raise TelegramError(f"HTTP {e.code} (controlla token e chat id)") from None
+        reason = ""
+        try:
+            reason = str(json.loads(e.read().decode("utf-8", "replace")).get("description", ""))[:150]
+        except Exception:
+            pass
+        if token and token in reason:
+            reason = ""
+        raise TelegramError(f"HTTP {e.code} (controlla token e chat id){': ' + reason if reason else ''}") from None
     except (urllib.error.URLError, OSError, ValueError):
         raise TelegramError("errore di rete verso Telegram") from None
     if not body.get("ok"):

@@ -321,6 +321,19 @@ class Telegram(unittest.TestCase):
         self.assertNotIn("SECRET123", str(cm.exception))
         self.assertIsNone(cm.exception.__cause__)
 
+    def test_telegram_reason_shown_without_token(self):
+        import io
+        import urllib.error
+
+        body = io.BytesIO(b'{"ok":false,"error_code":403,"description":"Forbidden: bots can\'t send messages to bots"}')
+        err = urllib.error.HTTPError("https://api.telegram.org/botSECRET123/sendMessage", 403, "x", {}, body)
+        with mock.patch.dict("os.environ", {"TELEGRAM_BOT_TOKEN": "SECRET123", "TELEGRAM_CHAT_ID": "1"}):
+            with mock.patch("urllib.request.urlopen", side_effect=err):
+                with self.assertRaises(monitor.TelegramError) as cm:
+                    monitor.telegram_send("x")
+        self.assertIn("bots can't send messages to bots", str(cm.exception))
+        self.assertNotIn("SECRET123", str(cm.exception))
+
 
 class Config(unittest.TestCase):
     def test_all_source_types_known(self):
