@@ -191,6 +191,11 @@ class AliExpress(unittest.TestCase):
         self.assertFalse(by_id["4"].in_stock)
         self.assertIn("venditore scartato", by_id["4"].detail)
 
+    def test_logs_rejected_apple_mac_mini_titles(self):
+        cards = [{"id": "9", "url": "https://it.aliexpress.com/item/9.html", "text": "Apple Mac mini M4 Pro 24GB 512GB\n1.979 €"}]
+        res, _ = self._run(cards, {})
+        self.assertTrue(any("scartata dal titolo" in n and "M4 Pro" in n for n in res.notes))
+
     def test_empty_search_is_parse_error(self):
         res, _ = self._run([], {})
         self.assertEqual(res.status, "parse_error")

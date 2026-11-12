@@ -594,6 +594,8 @@ def check_aliexpress_search(src: dict, cfg: dict, renderer: Any) -> SourceResult
             continue
         if title_reject_reason(card["title"], cfg, src):
             skipped_title += 1
+            if re.search(r"mac\s*mini", card["title"], re.I) and re.search(r"apple", card["title"], re.I) and len(res.notes) < 8:
+                res.notes.append(f"scartata dal titolo: {card['title'][:90]} ({fmt_eur(card['price']) if card['price'] else '?'})")
             continue
         if card["price"] is None or card["price"] > max_price:
             res.notes.append(f"scartata per prezzo ({fmt_eur(card['price']) if card['price'] else '?'}): {card['title'][:60]}")
