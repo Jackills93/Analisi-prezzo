@@ -1,1 +1,10 @@
-{}
+{
+  "offers": {},
+  "sources": {
+    "AliExpress (ricerca)": {},
+    "MediaWorld (venditore Okamac IT)": {
+      "fail_alerted": false,
+      "fail_since": "2026-11-12T23:00:58Z"
+    }
+  }
+}
