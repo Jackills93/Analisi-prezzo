@@ -1,0 +1,92 @@
+name: Mac mini price monitor
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # siti leggeri (Unieuro, Amazon): ogni 15 minuti
+    - cron: "7 * * * *"      # siti con browser (MediaWorld, AliExpress): ogni ora, al minuto 7
+  workflow_dispatch:
+    inputs:
+      telegram_test:
+        description: "Invia solo un messaggio Telegram di prova"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write   # serve per salvare lo stato
+
+jobs:
+  http:
+    # Parte ogni 15 minuti (e a mano). Salta il giro orario del browser.
+    if: ${{ github.event_name != 'schedule' || github.event.schedule == '*/15 * * * *' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: monitor-http
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test Telegram
+        if: ${{ inputs.telegram_test }}
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python3 monitor.py --test-telegram
+
+      - name: Controlla i prezzi (Unieuro, Amazon)
+        if: ${{ !inputs.telegram_test }}
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python3 monitor.py --only http
+
+      - name: Salva lo stato (solo se cambiato)
+        if: ${{ !inputs.telegram_test && always() }}
+        run: |
+          if ! git diff --quiet -- state-http.json; then
+            git config user.name "price-monitor"
+            git config user.email "price-monitor@users.noreply.github.com"
+            git add state-http.json
+            git commit -m "chore: aggiorna stato monitor (http)"
+            git pull --rebase
+            git push
+          fi
+
+  browser:
+    if: ${{ (github.event_name != 'schedule' || github.event.schedule == '7 * * * *') && !inputs.telegram_test }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: monitor-browser
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-browser.txt
+
+      - name: Installa Playwright e Chromium
+        run: |
+          pip install -r requirements-browser.txt
+          playwright install --with-deps chromium
+
+      - name: Controlla i prezzi (MediaWorld, AliExpress)
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python3 monitor.py --only browser
+
+      - name: Salva lo stato (solo se cambiato)
+        if: ${{ always() }}
+        run: |
+          if ! git diff --quiet -- state-browser.json; then
+            git config user.name "price-monitor"
+            git config user.email "price-monitor@users.noreply.github.com"
+            git add state-browser.json
+            git commit -m "chore: aggiorna stato monitor (browser)"
+            git pull --rebase
+            git push
+          fi
