@@ -1,8 +1,19 @@
 {
   "product": "Mac mini M4 16GB/256GB (nuovo)",
   "max_price": 600,
-  "require_patterns": ["Mac\\s*mini", "M4", "16\\s*GB", "256\\s*GB"],
-  "reject_patterns": ["ricondizionat", "usato", "refurbished", "renewed", "seconda mano"],
+  "require_patterns": [
+    "Mac\\s*mini",
+    "M4",
+    "16\\s*GB",
+    "256\\s*GB"
+  ],
+  "reject_patterns": [
+    "ricondizionat",
+    "usato",
+    "refurbished",
+    "renewed",
+    "seconda mano"
+  ],
   "fail_alert_hours": 6,
   "realert_price_drop": 5,
   "realert_cooldown_hours": 3,
@@ -12,7 +23,19 @@
     "min_item_rating": 4.7,
     "min_item_reviews": 30,
     "min_item_sold": 50,
-    "allowed_ship_from": ["Spagna", "Francia", "Germania", "Italia", "Polonia", "Repubblica Ceca", "Belgio", "Paesi Bassi", "Olanda", "Portogallo", "Austria"],
+    "allowed_ship_from": [
+      "Spagna",
+      "Francia",
+      "Germania",
+      "Italia",
+      "Polonia",
+      "Repubblica Ceca",
+      "Belgio",
+      "Paesi Bassi",
+      "Olanda",
+      "Portogallo",
+      "Austria"
+    ],
     "require_no_import_fees": true
   },
   "sources": [
@@ -25,20 +48,39 @@
     {
       "name": "Amazon.it",
       "type": "amazon",
-      "url": "https://www.amazon.it/dp/B0DLCVRCJS"
-    },
-    {
-      "name": "MediaWorld (venditore Okamac IT)",
-      "type": "mediaworld",
-      "url": "https://www.mediaworld.it/it/product/_apple-desktop-mac-mini-apple-m4-no-graphics-card-ram-16-gb-256-gb-ssd-150467878.html"
+      "url": "https://www.amazon.it/dp/B0DLCVRCJS",
+      "alert_on_failure": false
     },
     {
       "name": "AliExpress (ricerca)",
       "type": "aliexpress_search",
       "url": "https://it.aliexpress.com/w/wholesale-Mac-mini-M4-16GB-256GB.html",
       "max_detail_pages": 5,
-      "require_patterns": ["Apple", "Mac\\s*mini", "\\bM4\\b", "16\\s*GB", "256\\s*GB"],
-      "reject_patterns": ["Intel", "Ryzen", "\\bAMD\\b", "Win(dows)?\\s*1[01]", "M4\\s*Pro", "Docking", "\\bDock\\b", "\\bKit\\b", "Enclosure", "Supporto", "\\bHub\\b", "Custodia", "Adattatore", "Cavo", "Ventola", "Staffa"]
+      "require_patterns": [
+        "Apple",
+        "Mac\\s*mini",
+        "\\bM4\\b",
+        "16\\s*GB",
+        "256\\s*GB"
+      ],
+      "reject_patterns": [
+        "Intel",
+        "Ryzen",
+        "\\bAMD\\b",
+        "Win(dows)?\\s*1[01]",
+        "M4\\s*Pro",
+        "Docking",
+        "\\bDock\\b",
+        "\\bKit\\b",
+        "Enclosure",
+        "Supporto",
+        "\\bHub\\b",
+        "Custodia",
+        "Adattatore",
+        "Cavo",
+        "Ventola",
+        "Staffa"
+      ]
     }
   ]
 }

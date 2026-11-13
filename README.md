@@ -1,6 +1,6 @@
 # Monitor prezzi Mac mini M4 (16 GB / 256 GB) → Telegram
 
-Ti scrive su Telegram quando il Mac mini M4 16/256 **nuovo** è **disponibile** a **600 € o meno** su Unieuro, Amazon.it, MediaWorld o AliExpress. Gira su GitHub Actions: Unieuro e Amazon ogni 15 minuti, MediaWorld e AliExpress (che richiedono un browser) ogni ora.
+Ti scrive su Telegram quando il Mac mini M4 16/256 **nuovo** è **disponibile** a **600 € o meno** su Unieuro o AliExpress. Gira su GitHub Actions: Unieuro ogni 15 minuti, AliExpress (che richiede un browser) ogni ora. Amazon.it e MediaWorld bloccano gli IP di GitHub (CAPTCHA / 403): MediaWorld e' disattivato, Amazon e' ancora in config ma senza avvisi di errore (`alert_on_failure: false`) e va seguito con un alert di prezzo esterno (es. Keepa, ASIN B0DLCVRCJS).
 
 ## Cosa fa e cosa no
 
@@ -31,10 +31,9 @@ Limite: AliExpress mostra spesso prezzi con coupon applicati solo al checkout; i
 | Negozio | Lettura | Verifica |
 |---|---|---|
 | Unieuro | JSON `ng-state` della pagina | **verificato** su pagina reale (esaurito, 549,90 €) |
-| Amazon.it | HTML: `apex-pricetopay` + pulsante acquisto | struttura **verificata**; oggi c'è solo un usato a 712,94 € (correttamente ignorato). Markup dell'offerta *nuova* ricostruito, non osservato |
-| MediaWorld (venditore Okamac IT) | browser, selettori `data-test` | stato "non disponibile" **verificato**; stato "disponibile" **non osservato** (ipotesi: assenza di `NOT_AVAILABLE` + prezzo presente) |
+| Amazon.it | HTML della pagina | struttura verificata col browser; **su GitHub risponde con CAPTCHA** (avvisi di errore disattivati) |
+| MediaWorld | browser | **disattivato**: su GitHub risponde 403 (parser ancora nel codice e nei test) |
 | AliExpress | browser, ricerca + scheda | oggi **nessun annuncio valido** (solo M4 Pro e mini PC Intel/Ryzen). Testo delle schede ricostruito dai pattern osservati |
-| tutti | | **non verificato**: se Amazon, MediaWorld e AliExpress bloccano gli IP di GitHub; il costo/tempo di Playwright su Actions |
 
 Al primo giro guarda il log: `[ok]`, `[blocked]` o `[parse_error]` dice quali siti funzionano davvero. Il sito che blocca si può far girare dal Mac (Piano B).
 

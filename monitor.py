@@ -116,6 +116,7 @@ class SourceResult:
     detail: str = ""
     offers: list = field(default_factory=list)
     notes: list = field(default_factory=list)
+    quiet: bool = False  # True = non inviare avvisi se il sito non e' leggibile
 
 
 class FetchError(Exception):
@@ -626,10 +627,13 @@ def check_aliexpress_search(src: dict, cfg: dict, renderer: Any) -> SourceResult
 def check_source(src: dict, cfg: dict, renderer: Any = None) -> SourceResult:
     kind = src.get("type", "jsonld")
     if kind == "aliexpress_search":
-        return check_aliexpress_search(src, cfg, renderer)
-    if kind == "mediaworld":
-        return check_mediaworld(src, cfg, renderer)
-    return check_http_source(src, cfg)
+        res = check_aliexpress_search(src, cfg, renderer)
+    elif kind == "mediaworld":
+        res = check_mediaworld(src, cfg, renderer)
+    else:
+        res = check_http_source(src, cfg)
+    res.quiet = src.get("alert_on_failure", True) is False
+    return res
 
 
 # --------------------------------------------------------------------------- logica avvisi
@@ -652,7 +656,7 @@ def evaluate_health(prev: dict, res: SourceResult, cfg: dict, now: datetime) -> 
             st["fail_alerted"] = False
         else:
             hours = (now - _parse_iso(st["fail_since"])).total_seconds() / 3600
-            if hours >= cfg.get("fail_alert_hours", 6) and not st.get("fail_alerted"):
+            if hours >= cfg.get("fail_alert_hours", 6) and not st.get("fail_alerted") and not res.quiet:
                 msgs.append(
                     f"⚠️ {res.name}: non riesco a leggere la pagina da circa {hours:.0f} ore "
                     f"({res.status}: {res.detail}). Su questo sito il monitor e' cieco.\n{res.url}"

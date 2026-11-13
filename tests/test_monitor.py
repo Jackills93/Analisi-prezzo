@@ -18,7 +18,7 @@ AMZ_CAPTCHA = (FX / "amazon_captcha.html").read_text(encoding="utf-8")
 T0 = datetime(2026, 11, 20, 10, 0, tzinfo=timezone.utc)
 
 ALI_SRC = next(s for s in CFG["sources"] if s["type"] == "aliexpress_search")
-MW_SRC = next(s for s in CFG["sources"] if s["type"] == "mediaworld")
+MW_SRC = {"name": "MediaWorld", "type": "mediaworld", "url": "https://www.mediaworld.it/it/product/test.html"}  # fonte disattivata in config, parser ancora testato
 
 
 def offer(price=549.9, in_stock=True, source="Unieuro", item="", note=""):
@@ -280,6 +280,18 @@ class Health(unittest.TestCase):
         st, m = monitor.evaluate_health(st, self.res("ok"), CFG, T0 + timedelta(hours=9))
         self.assertEqual(len(m), 1)
         self.assertNotIn("fail_since", st)
+
+    def test_quiet_source_never_alerts(self):
+        r = monitor.SourceResult("Sito", "https://x", "blocked", "403", quiet=True)
+        st, m = monitor.evaluate_health({}, r, CFG, T0)
+        st, m = monitor.evaluate_health(st, r, CFG, T0 + timedelta(hours=10))
+        self.assertEqual(m, [])
+
+    def test_amazon_configured_quiet(self):
+        amz = next(s for s in CFG["sources"] if s["type"] == "amazon")
+        with mock.patch.object(monitor, "fetch", return_value=(200, AMZ_CAPTCHA)):
+            self.assertTrue(monitor.check_source(amz, CFG).quiet)
+        self.assertFalse(any(s["type"] == "mediaworld" for s in CFG["sources"]))
 
     def test_short_glitch_silent(self):
         st, _ = monitor.evaluate_health({}, self.res("error"), CFG, T0)
