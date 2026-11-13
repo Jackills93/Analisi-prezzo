@@ -1,0 +1,65 @@
+name: Weekend da Bari (voli + hotel)
+
+on:
+  schedule:
+    - cron: "17 5 * * *"    # scansione giornaliera (~06:17-07:17 ora italiana)
+    - cron: "37 7 * * 1"    # riepilogo settimanale del lunedi' (~08:37-09:37 ora italiana)
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "check = 1 richiesta di prova | scan = scansione completa | digest = riepilogo Telegram"
+        type: choice
+        options: [check, scan, digest]
+        default: check
+
+permissions:
+  contents: write
+
+concurrency:
+  group: travel
+  cancel-in-progress: false
+
+jobs:
+  travel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      IGNAV_API_KEY: ${{ secrets.IGNAV_API_KEY }}
+      SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scegli la modalita'
+        id: mode
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            if [ "${{ github.event.schedule }}" = "37 7 * * 1" ]; then echo "mode=digest" >> "$GITHUB_OUTPUT"; else echo "mode=scan" >> "$GITHUB_OUTPUT"; fi
+          else
+            echo "mode=${{ inputs.mode }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verifica (1 richiesta volo + 1 hotel)
+        if: ${{ steps.mode.outputs.mode == 'check' }}
+        run: python3 travel_monitor.py --check --with-hotel
+
+      - name: Scansione
+        if: ${{ steps.mode.outputs.mode == 'scan' }}
+        run: python3 travel_monitor.py
+
+      - name: Riepilogo settimanale
+        if: ${{ steps.mode.outputs.mode == 'digest' }}
+        run: python3 travel_monitor.py --digest
+
+      - name: Salva stato e dati (solo se cambiati)
+        if: ${{ steps.mode.outputs.mode == 'scan' && always() }}
+        run: |
+          if ! git diff --quiet -- travel_state.json docs/data.json; then
+            git config user.name "price-monitor"
+            git config user.email "price-monitor@users.noreply.github.com"
+            git add travel_state.json docs/data.json
+            git commit -m "chore: aggiorna scansione voli/hotel"
+            git pull --rebase
+            git push
+          fi

@@ -1,0 +1,50 @@
+{
+  "origin": "BRI",
+  "currency": "EUR",
+  "weekends": 8,
+  "flight": {
+    "max_price_per_person": 100,
+    "adults_for_totals": 2,
+    "realert_price_drop": 5,
+    "request_extra": {}
+  },
+  "hotel": {
+    "nights": 2,
+    "adults": 2,
+    "max_per_night": 80,
+    "min_rating": 8.5,
+    "max_km_from_centre": 1.0,
+    "searches_per_run": 8,
+    "top_n_cheapest_flights": 5
+  },
+  "limits": {
+    "max_requests_per_run": 300,
+    "prune_after_empty_scans": 3,
+    "prune_retry_days": 14,
+    "history_days": 60
+  },
+  "destinations": [
+    {"name": "Budapest", "airports": ["BUD"], "lat": 47.4979, "lon": 19.0402},
+    {"name": "Sofia", "airports": ["SOF"], "lat": 42.6977, "lon": 23.3219},
+    {"name": "Bucarest", "airports": ["OTP"], "lat": 44.4268, "lon": 26.1025},
+    {"name": "Praga", "airports": ["PRG"], "lat": 50.0755, "lon": 14.4378},
+    {"name": "Bruxelles", "airports": ["BRU", "CRL"], "lat": 50.8467, "lon": 4.3525},
+    {"name": "Varsavia", "airports": ["WAW", "WMI"], "lat": 52.2297, "lon": 21.0122},
+    {"name": "Berlino", "airports": ["BER"], "lat": 52.5200, "lon": 13.4050},
+    {"name": "Tirana", "airports": ["TIA"], "lat": 41.3275, "lon": 19.8187},
+    {"name": "Atene", "airports": ["ATH"], "lat": 37.9838, "lon": 23.7275},
+    {"name": "Vienna", "airports": ["VIE"], "lat": 48.2082, "lon": 16.3738},
+    {"name": "Madrid", "airports": ["MAD"], "lat": 40.4168, "lon": -3.7038},
+    {"name": "Lisbona", "airports": ["LIS"], "lat": 38.7223, "lon": -9.1393},
+    {"name": "Parigi", "airports": ["CDG", "ORY", "BVA"], "lat": 48.8566, "lon": 2.3522},
+    {"name": "Londra", "airports": ["STN", "LGW", "LTN", "LHR"], "lat": 51.5074, "lon": -0.1278},
+    {"name": "Amsterdam", "airports": ["AMS"], "lat": 52.3676, "lon": 4.9041},
+    {"name": "Dublino", "airports": ["DUB"], "lat": 53.3498, "lon": -6.2603},
+    {"name": "Copenaghen", "airports": ["CPH"], "lat": 55.6761, "lon": 12.5683},
+    {"name": "Stoccolma", "airports": ["ARN"], "lat": 59.3293, "lon": 18.0686},
+    {"name": "Belgrado", "airports": ["BEG"], "lat": 44.7866, "lon": 20.4489},
+    {"name": "Lussemburgo", "airports": ["LUX"], "lat": 49.6116, "lon": 6.1319},
+    {"name": "La Valletta", "airports": ["MLA"], "lat": 35.8997, "lon": 14.5146},
+    {"name": "Zagabria", "airports": ["ZAG"], "lat": 45.8150, "lon": 15.9819}
+  ]
+}

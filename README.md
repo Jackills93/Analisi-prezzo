@@ -114,7 +114,36 @@ python3 -I -m unittest discover -s tests -v
 
 Unieuro, Amazon (usato) e MediaWorld (non disponibile) usano strutture reali catturate il 12/11/2026; i file `*_RECONSTRUCTED` e i testi AliExpress sono ricostruiti: verificano la logica, non il formato reale.
 
+## Fase 2: weekend da Bari (voli diretti + hotel)
+
+Cerca ogni giorno i voli **diretti** andata/ritorno **venerdì → domenica** da Bari verso le capitali europee (Roma e le città italiane escluse) per i **prossimi 8 weekend**, poi cerca l'hotel per le offerte migliori.
+
+| Criterio | Valore (in `travel_config.json`) |
+|---|---|
+| Volo | ≤ 100 € a persona, andata e ritorno, solo diretti |
+| Hotel | ≤ 80 €/notte, voto Booking ≥ 8,5, ≤ 1 km dal centro, 2 notti, 2 adulti, 1 camera |
+| Avvisi Telegram | offerta volo sotto soglia (nuova, o ribasso di almeno 5 €) con l'hotel migliore se c'è |
+| Riepilogo | ogni lunedì: top 10 combinazioni per costo totale |
+| Dashboard | `docs/index.html` (tabella con filtri, ordinamento e andamento prezzi) |
+
+**Fonti e costi** (chiavi come secret GitHub, mai nel codice):
+- Voli: [Ignav](https://ignav.com) (`IGNAV_API_KEY`), 1.000 richieste gratis poi 2 $ ogni 1.000 (dati dal sito Ignav, da verificare in fase di registrazione). Una scansione completa usa fino a ~250 richieste la prima volta; le rotte senza voli diretti vengono sospese per 14 giorni dopo 3 scansioni vuote. Tetto di sicurezza: `limits.max_requests_per_run`.
+- Hotel: [SerpApi](https://serpapi.com), motore `booking` (`SERPAPI_API_KEY`), 250 ricerche gratis al mese. Il voto è quello Booking in scala 10; il filtro "1 km dal centro" usa le coordinate della struttura e del centro città. Al massimo 8 ricerche hotel per scansione (~240/mese).
+- Il sistema non prenota: mostra solo link a Google Flights e Booking.
+
+**Attivazione** (una volta sola):
+1. Registrati su Ignav e SerpApi e crea i secret `IGNAV_API_KEY` e `SERPAPI_API_KEY` (Settings → Secrets and variables → Actions).
+2. Actions → "Weekend da Bari (voli + hotel)" → Run workflow con `mode = check`: fa 1 richiesta volo + 1 hotel e stampa valuta, itinerari e hotel trovati.
+3. Se tutto torna (valuta EUR), lancia `mode = scan`: scrive `docs/data.json` e invia gli avvisi.
+4. Dashboard: Settings → Pages → Deploy from a branch → `main` / `/docs`.
+
+**Non verificato** (le API non erano raggiungibili dal mio ambiente, i test usano risposte ricostruite dagli schemi documentati):
+- valuta restituita da Ignav (il campione di documentazione mostra USD): se non è EUR gli avvisi restano disattivati e il `check` lo segnala;
+- se il prezzo Ignav è per persona (si richiede `adults: 1` per evitare l'ambiguità);
+- coordinate di aeroporti/città sulle rotte realmente operate, e la qualità dei dati hotel di SerpApi per ogni città.
+
 ## Roadmap
 
-- **Fase 1 (questa)**: monitor del Mac mini M4 16/256 con notifica Telegram.
-- **Fase 2 (futura)**: dashboard in cui scegliere l'oggetto da monitorare o incollare un link, con monitoraggio automatico del prodotto e soglia di prezzo impostabile.
+- **Fase 1**: monitor del Mac mini M4 16/256 con notifica Telegram.
+- **Fase 2** (in corso): weekend da Bari + hotel, con dashboard.
+- **Fase 3** (futura): dashboard in cui scegliere l'oggetto da monitorare o incollare un link, con soglia di prezzo impostabile.

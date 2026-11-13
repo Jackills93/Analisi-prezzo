@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weekend da Bari: voli diretti + hotel</title>
+<style>
+  :root { --bg:#fff; --fg:#1b1f24; --muted:#5b6672; --line:#d9dee4; --card:#f5f7f9; --ok:#14733a; --accent:#0b57d0; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#14181d; --fg:#e8ecf0; --muted:#98a3ae; --line:#2b333c; --card:#1c2229; --ok:#5fd18a; --accent:#8ab4f8; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.45 system-ui,-apple-system,Segoe UI,sans-serif; background:var(--bg); color:var(--fg); }
+  main { max-width:1100px; margin:0 auto; padding:20px 16px 48px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:var(--muted); margin:0 0 16px; }
+  .bar { display:flex; flex-wrap:wrap; gap:12px; align-items:end; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; margin-bottom:14px; }
+  label { display:flex; flex-direction:column; gap:4px; font-size:13px; color:var(--muted); }
+  input, select { font:inherit; padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); min-width:120px; }
+  .chk { flex-direction:row; align-items:center; gap:6px; padding-bottom:6px; }
+  .chk input { min-width:0; }
+  .wrap { overflow-x:auto; border:1px solid var(--line); border-radius:10px; }
+  table { border-collapse:collapse; width:100%; min-width:820px; }
+  th, td { text-align:left; padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); cursor:pointer; white-space:nowrap; user-select:none; }
+  th[aria-sort] { color:var(--fg); }
+  tr:last-child td { border-bottom:0; }
+  .num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  th.num { text-align:right; }
+  .deal { color:var(--ok); font-weight:600; }
+  .muted { color:var(--muted); font-size:13px; }
+  a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+  svg.spark { width:90px; height:24px; display:block; }
+  .empty { padding:28px; text-align:center; color:var(--muted); }
+  footer { margin-top:16px; color:var(--muted); font-size:13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Weekend da Bari: voli diretti + hotel</h1>
+  <p class="sub" id="sub">Caricamento…</p>
+  <div class="bar">
+    <label>Destinazione <select id="dest"><option value="">Tutte</option></select></label>
+    <label>Volo max a persona (€) <input id="maxp" type="number" min="0" step="5"></label>
+    <label class="chk"><input id="onlyh" type="checkbox"> Solo con hotel nei criteri</label>
+    <label class="chk"><input id="onlyd" type="checkbox"> Solo sotto soglia</label>
+  </div>
+  <div class="wrap"><table id="t">
+    <thead><tr>
+      <th data-k="dest">Destinazione</th><th data-k="fri">Weekend</th>
+      <th data-k="price" class="num">Volo A/R a persona</th><th data-k="trip" class="num">Totale per 2</th>
+      <th>Hotel</th><th>Andamento</th><th>Link</th>
+    </tr></thead>
+    <tbody id="rows"></tbody>
+  </table></div>
+  <footer>I prezzi sono indicativi e cambiano di continuo: controlla sempre sul sito prima di prenotare. Questa pagina non prenota nulla.</footer>
+</main>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const eur = n => (n == null ? "–" : n.toLocaleString("it-IT", { style: "currency", currency: "EUR", minimumFractionDigits: 0, maximumFractionDigits: 2 }));
+const fmtDate = s => new Date(s + "T12:00:00").toLocaleDateString("it-IT", { weekday: "short", day: "2-digit", month: "2-digit" });
+const safeUrl = u => { try { const x = new URL(u); return (x.protocol === "https:" || x.protocol === "http:") ? x.href : null; } catch { return null; } };
+let data = null, sortKey = "price", sortDir = 1;
+
+function el(tag, text, cls) { const e = document.createElement(tag); if (text != null) e.textContent = text; if (cls) e.className = cls; return e; }
+function link(href, label) { const u = safeUrl(href); if (!u) return null; const a = el("a", label); a.href = u; a.target = "_blank"; a.rel = "noopener noreferrer"; return a; }
+
+function spark(series) {
+  const ns = "http://www.w3.org/2000/svg", svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("class", "spark"); svg.setAttribute("viewBox", "0 0 90 24");
+  if (!series || series.length < 2) { return el("span", series && series.length ? "1 rilevazione" : "–", "muted"); }
+  const v = series.map(p => p[1]), lo = Math.min(...v), hi = Math.max(...v), r = hi - lo || 1;
+  const pts = v.map((y, i) => `${(i / (v.length - 1)) * 86 + 2},${22 - ((y - lo) / r) * 20}`).join(" ");
+  const pl = document.createElementNS(ns, "polyline");
+  pl.setAttribute("points", pts); pl.setAttribute("fill", "none"); pl.setAttribute("stroke", "currentColor"); pl.setAttribute("stroke-width", "1.6");
+  svg.appendChild(pl);
+  const t = document.createElementNS(ns, "title"); t.textContent = `da ${eur(v[0])} a ${eur(v[v.length - 1])}`; svg.appendChild(t);
+  return svg;
+}
+
+function render() {
+  const rows = $("rows"); rows.replaceChildren();
+  if (!data || !data.generated_at) { const tr = rows.insertRow(), td = tr.insertCell(); td.colSpan = 7; td.className = "empty"; td.textContent = "Nessun dato ancora: la prima scansione non è stata eseguita."; return; }
+  const maxp = parseFloat($("maxp").value), dest = $("dest").value, thr = data.criteria.max_flight_pp;
+  let list = data.fares.filter(f => (!dest || f.dest === dest) && (isNaN(maxp) || f.price <= maxp) && (!$("onlyh").checked || f.hotel) && (!$("onlyd").checked || f.price <= thr));
+  const val = f => sortKey === "trip" ? (f.trip_total ?? 1e9) : f[sortKey];
+  list.sort((a, b) => { const x = val(a), y = val(b); return (x < y ? -1 : x > y ? 1 : 0) * sortDir || a.fri.localeCompare(b.fri); });
+  if (!list.length) { const tr = rows.insertRow(), td = tr.insertCell(); td.colSpan = 7; td.className = "empty"; td.textContent = "Nessuna combinazione con questi filtri."; return; }
+  for (const f of list) {
+    const tr = rows.insertRow();
+    const c0 = tr.insertCell(); c0.append(el("div", f.dest), el("div", `${f.airport} · ${f.carrier || ""}`, "muted"));
+    const c1 = tr.insertCell(); c1.append(el("div", `${fmtDate(f.fri)} → ${fmtDate(f.sun)}`), el("div", f.out_time ? "andata " + f.out_time.slice(11) : "", "muted"));
+    const c2 = tr.insertCell(); c2.className = "num" + (f.price <= thr ? " deal" : ""); c2.textContent = eur(f.price);
+    const c3 = tr.insertCell(); c3.className = "num"; c3.textContent = f.trip_total != null ? eur(f.trip_total) : eur(f.flight_total) + " (solo voli)";
+    const c4 = tr.insertCell();
+    if (f.hotel) { c4.append(el("div", f.hotel.name), el("div", `${eur(f.hotel.per_night)}/notte · voto ${f.hotel.rating} · ${f.hotel.km} km dal centro`, "muted")); }
+    else if (f.hotel_checked) { c4.append(el("span", "Nessuno nei criteri", "muted")); }
+    else { c4.append(el("span", "Non cercato", "muted")); }
+    const c5 = tr.insertCell(); c5.append(spark(data.history[`${f.dest}|${f.fri}`]));
+    const c6 = tr.insertCell();
+    for (const [h, l] of [[f.flights_link, "Voli"], [(f.hotel && safeUrl(f.hotel.link)) ? f.hotel.link : f.hotel_link, "Hotel"]]) { const a = link(h, l); if (a) { c6.append(a, " "); } }
+  }
+  for (const th of document.querySelectorAll("th[data-k]")) { if (th.dataset.k === sortKey) th.setAttribute("aria-sort", sortDir === 1 ? "ascending" : "descending"); else th.removeAttribute("aria-sort"); }
+}
+
+async function init() {
+  try { data = await (await fetch("data.json", { cache: "no-store" })).json(); } catch { data = null; }
+  if (data && data.generated_at) {
+    const c = data.criteria, d = new Date(data.generated_at);
+    $("sub").textContent = `Da ${data.origin}, venerdì → domenica, voli diretti. Hotel: max ${eur(c.max_per_night)}/notte, voto ≥ ${c.min_rating}, entro ${c.max_km_from_centre} km dal centro. Aggiornato ${d.toLocaleString("it-IT")}.`;
+    for (const n of [...new Set(data.fares.map(f => f.dest))].sort()) { const o = el("option", n); o.value = n; $("dest").append(o); }
+    $("maxp").value = c.max_flight_pp;
+  } else { $("sub").textContent = "In attesa della prima scansione."; }
+  for (const id of ["dest", "maxp", "onlyh", "onlyd"]) $(id).addEventListener("input", render);
+  for (const th of document.querySelectorAll("th[data-k]")) th.addEventListener("click", () => { if (sortKey === th.dataset.k) sortDir = -sortDir; else { sortKey = th.dataset.k; sortDir = 1; } render(); });
+  render();
+}
+init();
+</script>
+</body>
+</html>
