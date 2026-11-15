@@ -81,6 +81,47 @@
         "Ventola",
         "Staffa"
       ]
+    },
+    {
+      "name": "eBay.it",
+      "type": "ebay_search",
+      "url": "https://www.ebay.it/sch/i.html?_nkw=Apple+Mac+mini+M4+16GB+256GB&LH_BIN=1&LH_ItemCondition=1000",
+      "q": "Apple Mac mini M4 16GB 256GB",
+      "marketplace": "EBAY_IT",
+      "limit": 50,
+      "seller_filter": {
+        "min_feedback_pct": 98,
+        "min_feedback_score": 100
+      },
+      "require_patterns": [
+        "Mac\\s*mini",
+        "\\bM4\\b",
+        "16\\s*GB",
+        "256\\s*GB"
+      ],
+      "reject_patterns": [
+        "M4\\s*Pro",
+        "Intel",
+        "Ryzen",
+        "\\bAMD\\b",
+        "Docking",
+        "\\bDock\\b",
+        "\\bKit\\b",
+        "Enclosure",
+        "Supporto",
+        "\\bHub\\b",
+        "Custodia",
+        "Adattatore",
+        "Cavo",
+        "Ventola",
+        "Staffa",
+        "per parti",
+        "difettoso",
+        "rotto",
+        "bloccato",
+        "iCloud",
+        "senza (scatola|alimentat)"
+      ]
     }
   ]
 }

@@ -22,6 +22,7 @@ la richiesta, lo segnala come "blocked" e NON tenta di aggirare la protezione.
 from __future__ import annotations
 
 import argparse
+import base64
 import gzip
 import html as htmllib
 import json
@@ -53,6 +54,7 @@ MODES = {
     "jsonld": "http",
     "mediaworld": "browser",
     "aliexpress_search": "browser",
+    "ebay_search": "http",
 }
 
 # Estrazioni eseguite dentro la pagina renderizzata (Playwright / browser).
@@ -624,12 +626,136 @@ def check_aliexpress_search(src: dict, cfg: dict, renderer: Any) -> SourceResult
     return res
 
 
+# --------------------------------------------------------------------------- eBay (API ufficiale Browse)
+
+EBAY_TOKEN_URL = "https://api.ebay.com/identity/v1/oauth2/token"
+EBAY_SEARCH_URL = "https://api.ebay.com/buy/browse/v1/item_summary/search"
+
+
+def _json_request(url: str, *, data: Optional[bytes] = None, headers: Optional[dict] = None, timeout: int = 25) -> Any:
+    """Richiesta JSON per le API con credenziali. Gli errori non contengono mai URL, header o segreti."""
+    req = urllib.request.Request(url, data=data, headers={"Accept": "application/json", **(headers or {})})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read().decode("utf-8", "replace"))
+    except urllib.error.HTTPError as e:
+        detail = ""
+        try:
+            body = json.loads(e.read().decode("utf-8", "replace"))
+            detail = str(body.get("error_description") or body.get("errors", [{}])[0].get("message") or "")[:120]
+        except Exception:
+            pass
+        raise FetchError(f"HTTP {e.code}" + (f" ({detail})" if detail else "")) from None
+    except (urllib.error.URLError, TimeoutError, OSError):
+        raise FetchError("errore di rete") from None
+    except ValueError:
+        raise FetchError("risposta non in formato JSON") from None
+
+
+def ebay_token(client_id: str, client_secret: str) -> str:
+    basic = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
+    body = urllib.parse.urlencode({"grant_type": "client_credentials", "scope": "https://api.ebay.com/oauth/api_scope"}).encode()
+    resp = _json_request(EBAY_TOKEN_URL, data=body, headers={
+        "Authorization": f"Basic {basic}", "Content-Type": "application/x-www-form-urlencoded"})
+    token = resp.get("access_token") if isinstance(resp, dict) else None
+    if not token:
+        raise FetchError("token eBay non ricevuto")
+    return str(token)
+
+
+def ebay_search(token: str, src: dict, cfg: dict) -> Any:
+    flt = ",".join([
+        "conditions:{NEW}", "buyingOptions:{FIXED_PRICE}", "priceCurrency:EUR",
+        f"price:[..{int(float(cfg['max_price']))}]",
+    ])
+    params = {"q": src["q"], "filter": flt, "sort": "price", "limit": int(src.get("limit", 50))}
+    return _json_request(EBAY_SEARCH_URL + "?" + urllib.parse.urlencode(params), headers={
+        "Authorization": f"Bearer {token}", "X-EBAY-C-MARKETPLACE-ID": src.get("marketplace", "EBAY_IT")})
+
+
+def parse_ebay_items(resp: Any) -> list[dict]:
+    """Annunci dalla risposta Browse API (itemSummaries). Il costo di spedizione, se noto, e' separato dal prezzo."""
+    out: list[dict] = []
+    for it in (resp or {}).get("itemSummaries", []) or []:
+        price = it.get("price") or {}
+        if str(price.get("currency", "")).upper() != "EUR":
+            continue
+        p = parse_price(price.get("value"))
+        if p is None:
+            continue
+        ship = None
+        for opt in it.get("shippingOptions", []) or []:
+            cost = (opt.get("shippingCost") or {})
+            v = parse_price(cost.get("value")) if str(cost.get("currency", "EUR")).upper() == "EUR" else None
+            if v is not None and (ship is None or v < ship):
+                ship = v
+        seller = it.get("seller") or {}
+        out.append({
+            "item": str(it.get("itemId", "")), "title": str(it.get("title", "")), "price": p, "shipping": ship,
+            "url": str(it.get("itemWebUrl", "")), "seller": str(seller.get("username", "")),
+            "fb_pct": parse_price(seller.get("feedbackPercentage")), "fb_score": parse_price(seller.get("feedbackScore")),
+        })
+    return out
+
+
+def ebay_seller_reasons(item: dict, f: dict) -> list[str]:
+    """Motivi per cui il venditore NON passa il filtro. Un dato mancante conta come non superato."""
+    reasons: list[str] = []
+    for label, value, minimum in (("feedback %", item.get("fb_pct"), f.get("min_feedback_pct")),
+                                  ("valutazioni", item.get("fb_score"), f.get("min_feedback_score"))):
+        if minimum is None:
+            continue
+        if value is None:
+            reasons.append(f"{label}: dato non trovato")
+        elif value < minimum:
+            reasons.append(f"{label} {value:g} < {minimum:g}")
+    return reasons
+
+
+def check_ebay_search(src: dict, cfg: dict) -> SourceResult:
+    name, url = src["name"], src["url"] if "url" in src else "https://www.ebay.it"
+    cid, secret = os.environ.get("EBAY_CLIENT_ID", "").strip(), os.environ.get("EBAY_CLIENT_SECRET", "").strip()
+    if not cid or not secret:
+        return SourceResult(name, url, "error", "mancano EBAY_CLIENT_ID / EBAY_CLIENT_SECRET (secret GitHub)")
+    try:
+        resp = ebay_search(ebay_token(cid, secret), src, cfg)
+    except FetchError as e:
+        status = "blocked" if str(e).startswith(("HTTP 401", "HTTP 403", "HTTP 429")) else "error"
+        return SourceResult(name, url, status, f"eBay: {e}")
+    items = parse_ebay_items(resp)
+    res = SourceResult(name, url, "ok")
+    max_price, skipped, rejected = float(cfg["max_price"]), 0, 0
+    sf = src.get("seller_filter", {})
+    for it in items:
+        if title_reject_reason(it["title"], cfg, src):
+            skipped += 1
+            if re.search(r"mac\s*mini", it["title"], re.I) and len(res.notes) < 8:
+                res.notes.append(f"scartato dal titolo: {it['title'][:90]} ({fmt_eur(it['price'])})")
+            continue
+        total = it["price"] + (it["shipping"] or 0.0)
+        if total > max_price:
+            res.notes.append(f"sopra soglia ({fmt_eur(total)}): {it['title'][:60]}")
+            continue
+        reasons = ebay_seller_reasons(it, sf)
+        ship = f"spedizione {fmt_eur(it['shipping'])}" if it["shipping"] else "spedizione da verificare"
+        note = (f"Venditore: {it['seller'] or '?'} · {it['fb_pct'] if it['fb_pct'] is not None else '?'}% feedback · "
+                f"{int(it['fb_score']) if it['fb_score'] is not None else '?'} valutazioni · {ship}")
+        if reasons:
+            rejected += 1
+        res.offers.append(Offer(name, it["url"] or url, "ok", total, not reasons, it["title"],
+                                "venditore scartato: " + "; ".join(reasons) if reasons else "", item=it["item"], note=note))
+    res.notes.insert(0, f"{len(items)} annunci letti: {skipped} non corrispondono, {len(res.offers)} sotto soglia, {rejected} con venditore scartato")
+    return res
+
+
 def check_source(src: dict, cfg: dict, renderer: Any = None) -> SourceResult:
     kind = src.get("type", "jsonld")
     if kind == "aliexpress_search":
         res = check_aliexpress_search(src, cfg, renderer)
     elif kind == "mediaworld":
         res = check_mediaworld(src, cfg, renderer)
+    elif kind == "ebay_search":
+        res = check_ebay_search(src, cfg)
     else:
         res = check_http_source(src, cfg)
     res.quiet = src.get("alert_on_failure", True) is False

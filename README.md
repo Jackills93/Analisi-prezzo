@@ -1,6 +1,6 @@
 # Monitor prezzi Mac mini M4 (16 GB / 256 GB) → Telegram
 
-Ti scrive su Telegram quando il Mac mini M4 16/256 **nuovo** è **disponibile** a **600 € o meno** su Unieuro o AliExpress. Gira su GitHub Actions: Unieuro ogni 15 minuti, AliExpress (che richiede un browser) ogni ora. Amazon.it e MediaWorld bloccano gli IP di GitHub (CAPTCHA / 403): MediaWorld e' disattivato, Amazon e' ancora in config ma senza avvisi di errore (`alert_on_failure: false`) e va seguito con un alert di prezzo esterno (es. Keepa, ASIN B0DLCVRCJS).
+Ti scrive su Telegram quando il Mac mini M4 16/256 **nuovo** è **disponibile** a **600 € o meno** su Unieuro, eBay.it o AliExpress. Gira su GitHub Actions: Unieuro ed eBay ogni 15 minuti, AliExpress (che richiede un browser) ogni ora. Amazon.it e MediaWorld bloccano gli IP di GitHub (CAPTCHA / 403): MediaWorld e' disattivato, Amazon e' ancora in config ma senza avvisi di errore (`alert_on_failure: false`) e va seguito con un alert di prezzo esterno (es. Keepa, ASIN B0DLCVRCJS).
 
 ## Cosa fa e cosa no
 
@@ -33,9 +33,21 @@ Limite: AliExpress mostra spesso prezzi con coupon applicati solo al checkout; i
 | Unieuro | JSON `ng-state` della pagina | **verificato** su pagina reale (esaurito, 549,90 €) |
 | Amazon.it | HTML della pagina | struttura verificata col browser; **su GitHub risponde con CAPTCHA** (avvisi di errore disattivati) |
 | MediaWorld | browser | **disattivato**: su GitHub risponde 403 (parser ancora nel codice e nei test) |
+| eBay.it | API ufficiale eBay Browse (OAuth), solo nuovo, solo Compralo Subito, prezzo + spedizione ≤ soglia | **non verificato dal vivo** (serve la tua chiave). Filtro venditore: feedback ≥ 98 % e ≥ 100 valutazioni |
 | AliExpress | browser, ricerca + scheda | oggi **nessun annuncio valido** (solo M4 Pro e mini PC Intel/Ryzen). Testo delle schede ricostruito dai pattern osservati |
 
 Al primo giro guarda il log: `[ok]`, `[blocked]` o `[parse_error]` dice quali siti funzionano davvero. Il sito che blocca si può far girare dal Mac (Piano B).
+
+## eBay: attivazione (una volta sola)
+
+eBay si interroga con l'**API ufficiale** (niente scraping, nessun blocco sugli IP di GitHub). Servono le chiavi, che crei tu:
+
+1. Registrati su `developer.ebay.com` (account sviluppatore gratuito) → **Application Keys** → crea un keyset **Production**.
+2. eBay disattiva subito il keyset finché non scegli come gestire le "Marketplace Account Deletion notifications": per un uso personale che non salva dati eBay si seleziona l'**esenzione** (Alerts & Notifications → Production → "exempt", motivo: non conservi dati personali). Dopo l'esenzione il keyset si attiva; alcuni utenti segnalano ritardi di giorni.
+3. Copia **App ID (Client ID)** e **Cert ID (Client Secret)** e crea i secret GitHub `EBAY_CLIENT_ID` e `EBAY_CLIENT_SECRET`.
+4. Rilancia il workflow "Mac mini price monitor": nel log eBay.it deve risultare `[ok]` con "N annunci letti".
+
+Finché le chiavi mancano, eBay risulta `[error]` e dopo 6 ore ricevi un solo avviso. Il filtro venditore si regola in `config.json → sources → eBay.it → seller_filter`. Il costo di spedizione, quando eBay lo indica, è sommato al prezzo prima del confronto con la soglia.
 
 ## Installazione (circa 10 minuti)
 

@@ -33,11 +33,13 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python3 monitor.py --test-telegram
 
-      - name: Controlla i prezzi (Unieuro, Amazon)
+      - name: Controlla i prezzi (Unieuro, Amazon, eBay)
         if: ${{ !inputs.telegram_test }}
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          EBAY_CLIENT_ID: ${{ secrets.EBAY_CLIENT_ID }}
+          EBAY_CLIENT_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
         run: python3 monitor.py --only http
 
       - name: Salva lo stato (solo se cambiato)
