@@ -14,7 +14,7 @@
     },
     "Unieuro": {},
     "eBay.it": {
-      "fail_alerted": false,
+      "fail_alerted": true,
       "fail_since": "2026-11-15T20:36:27Z"
     }
   }
